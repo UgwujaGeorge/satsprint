@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SATSprint</title>
+<style>
+:root{--bg:#0f1220;--card:#181c30;--ink:#eef0ff;--mute:#9aa0c3;--acc:#7c5cff;--ok:#22c55e;--bad:#ef4444}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:720px;margin:0 auto;padding:24px 16px}
+h1{font-size:2rem;margin:.2em 0}h1 span{color:var(--acc)}
+p{color:var(--mute)}
+.card{background:var(--card);border-radius:14px;padding:20px;margin:16px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:1rem;cursor:pointer}
+button.ghost{background:transparent;border:1px solid #33395c;color:var(--ink)}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;background:#22274a}
+.opt.ok{background:var(--ok)}.opt.bad{background:var(--bad)}
+.bar{display:flex;justify-content:space-between;color:var(--mute);font-size:.9rem}
+.stat{flex:1;min-width:120px;text-align:center}.stat b{display:block;font-size:1.6rem}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SAT<span>Sprint</span></h1>
+  <p>Quick timed SAT practice. Pick a section and go.</p>
+
+  <div id="home" class="card">
+    <div class="row">
+      <button onclick="start('math')">Math</button>
+      <button onclick="start('rw')">Reading &amp; Writing</button>
+      <button class="ghost" onclick="start('mix')">Mixed</button>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <div class="stat"><b id="sBest">0</b>Best score</div>
+      <div class="stat"><b id="sPlayed">0</b>Sessions</div>
+      <div class="stat"><b id="sAcc">0%</b>Accuracy</div>
+    </div>
+  </div>
+
+  <div id="quiz" class="card hidden">
+    <div class="bar"><span id="qNum"></span><span id="timer"></span></div>
+    <h3 id="qText"></h3>
+    <div id="opts"></div>
+    <div class="row" style="margin-top:12px"><button id="next" class="hidden" onclick="next()">Next</button></div>
+  </div>
+
+  <div id="done" class="card hidden">
+    <h2 id="result"></h2>
+    <p id="resultSub"></p>
+    <button onclick="home()">Back</button>
+  </div>
+</div>
+<script>
+const Q={math:[
+["If 3x + 5 = 20, what is x?",["3","5","15","25/3"],1],
+["What is 15% of 80?",["8","12","15","10"],1],
+["Slope of the line through (1,2) and (3,8)?",["2","3","4","6"],1],
+["If f(x)=x²−4, what is f(3)?",["5","9","1","13"],0],
+["Solve: 2(x−3)=10",["5","8","2","7"],1],
+["A circle has radius 4. Its area is:",["8π","16π","4π","64π"],1],
+["Which is a solution to x² − 5x + 6 = 0?",["1","2","4","6"],1],
+["Mean of 4, 8, 10, 14?",["8","9","10","12"],1]],
+rw:[
+["Choose the word closest in meaning to 'meticulous':",["careless","thorough","quick","loud"],1],
+["'The team ___ celebrating its win.' Pick the correct verb:",["are","is","were","be"],1],
+["Which transition best shows contrast?",["Moreover","However","Therefore","Likewise"],1],
+["'Ephemeral' most nearly means:",["lasting","brief","bright","heavy"],1],
+["Pick the correctly punctuated sentence:",["Its raining, lets go.","It's raining; let's go.","Its' raining, let's go.","It's raining let's, go."],1],
+["'Ubiquitous' most nearly means:",["rare","everywhere","ancient","hidden"],1],
+["Which word best completes: 'Her argument was ___, convincing even skeptics.'",["feeble","compelling","vague","irrelevant"],1],
+["'Neither the students nor the teacher ___ ready.'",["were","was","are","be"],1]]};
+let set=[],i=0,score=0,t=0,tick;
+const $=id=>document.getElementById(id);
+const stats=()=>{try{return JSON.parse(localStorage.getItem('sats'))||{best:0,played:0,right:0,total:0}}catch(e){return{best:0,played:0,right:0,total:0}}};
+function render(){const s=stats();$('sBest').textContent=s.best;$('sPlayed').textContent=s.played;$('sAcc').textContent=s.total?Math.round(100*s.right/s.total)+'%':'0%'}
+function show(id){['home','quiz','done'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function start(k){const pool=k==='mix'?[...Q.math,...Q.rw]:Q[k];set=[...pool].sort(()=>Math.random()-.5).slice(0,5);i=0;score=0;t=0;clearInterval(tick);tick=setInterval(()=>{t++;$('timer').textContent=t+'s'},1000);show('quiz');ask()}
+function ask(){const [q,o]=set[i];$('qNum').textContent=`Question ${i+1}/${set.length}`;$('qText').textContent=q;$('next').classList.add('hidden');$('opts').innerHTML='';o.forEach((x,j)=>{const b=document.createElement('button');b.className='opt';b.textContent=x;b.onclick=()=>pick(j,b);$('opts').appendChild(b)})}
+function pick(j,b){const c=set[i][2],bs=[...$('opts').children];bs.forEach(x=>x.disabled=true);bs[c].classList.add('ok');if(j===c)score++;else b.classList.add('bad');$('next').classList.remove('hidden')}
+function next(){i++;if(i<set.length)return ask();clearInterval(tick);const s=stats();s.played++;s.right+=score;s.total+=set.length;s.best=Math.max(s.best,score);try{localStorage.setItem('sats',JSON.stringify(s))}catch(e){}$('result').textContent=`${score}/${set.length} correct`;$('resultSub').textContent=`Finished in ${t}s`;show('done')}
+function home(){render();show('home')}
+render();
+</script>
+</body>
+</html>
